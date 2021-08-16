@@ -4,15 +4,15 @@ import time
 import random # to get some 'realistic numbers' :-)
 
 # Parameters
-sapIotDeviceID = "<your device alternate ID>"
-pemCertFilePath = "./certificates/newcert.pem"
-mqttServerUrl = "xyzabc.eu10.cp.iot.sap" # enter the IoT cockpit url here
+sapIotDeviceID = "smu-team01-device"
+pemCertFilePath = "./certificates/smu-team01-device-device_certificateopla.pem"
+mqttServerUrl = "a4042ecf-281e-4d4a-b721-c9b43461e188.eu10.cp.iot.sap" # enter the IoT cockpit url here
 mqttServerPort = 8883 # Port used by SAP IoT
 ackTopicLevel = "ack/" 
 measuresTopicLevel = "measures/"
 
 # dummy message
-dummyMsg = '{{ "capabilityAlternateId": "<your id>", "sensorAlternateId": "<your sensor id>", "measures": [{{"speed": "{}"}}] }}'
+dummyMsg = '{{ "capabilityAlternateId": "simpleCapability", "sensorAlternateId": "simpleSensor", "measures": [{{"temperature": "{}"}}] }}'
 
 # This function gives a connection response from the server
 def onConnect(client, userdata, flags, rc):
@@ -25,6 +25,7 @@ def onConnect(client, userdata, flags, rc):
         5: "Connection refused",
     }
     print(rcList.get(rc, "Unknown server connection return code {}.".format(rc)))
+    client.subscribe(ackTopicLevel+sapIotDeviceID) #Subscribe to device ack topic (feedback given from SAP IoT MQTT Server)
 
 # The callback for when a PUBLISH message is received from the server.
 def onMessage(client, userdata, msg):
@@ -41,10 +42,9 @@ client.on_connect = onConnect
 client.on_message = onMessage
 client.tls_set(certfile=pemCertFilePath, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS, ciphers=None)
 client.connect(mqttServerUrl, mqttServerPort)
-client.subscribe(ackTopicLevel+sapIotDeviceID) #Subscribe to device ack topic (feedback given from SAP IoT MQTT Server)
 client.loop_start() #Listening loop start 
 
-for _ in range(10): # We send 10 random values
+for _ in range(2): # We send 10 random values
     sendMessage(client, measuresTopicLevel+sapIotDeviceID, dummyMsg.format(random.randint(10,50)))
 time.sleep(2) # wait until we have all feedback messages from the server
 client.loop_stop
