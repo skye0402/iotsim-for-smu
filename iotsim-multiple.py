@@ -3,13 +3,10 @@ import ssl
 import time
 import re
 import random # to get some 'realistic numbers' :-)
+import configparser
+from datetime import datetime
 
-pemCertFilePath = "./certificates/"
-mqttServerUrl = "a4042ecf-281e-4d4a-b721-c9b43461e188.eu10.cp.iot.sap" # enter the IoT cockpit url here
-mqttServerPort = 8883 # Port used by SAP IoT
-ackTopicLevel = "ack/" 
-measuresTopicLevel = "measures/"
-dummyMsg = '{{ "capabilityAlternateId": "simpleCapability", "sensorAlternateId": "simpleSensor", "measures": [{{"temperature": "{}"}}] }}'
+iotDevMessage = '{{ "capabilityAlternateId": "simpleCapability", "sensorAlternateId": "simpleSensor", "measures": [{{"temperature": "{}"}}] }}'
 
 class IotDevice:
     # class variables
@@ -32,7 +29,6 @@ class IotDevice:
 
     # The callback for when a PUBLISH message is received from the server.
     def onMessage(self, client, userdata, msg):
-        print("Hello")
         print(msg.topic + " " + str(msg.payload))
 
     # Subscription to topic confirmation
@@ -40,31 +36,32 @@ class IotDevice:
         pass
 
     # object constructor
-    def __init__(self, certFilename):
+    def __init__(self, certFilename, pemCertFilePath, url, port, ack, measure):
         super().__init__()
         n = 3 # Cut after 3rd "-"
         deviceName=re.match(r'^((?:[^-]*-){%d}[^-]*)-(.*)' % (n-1), certFilename)
         if deviceName: 
             self.id = deviceName.groups()[0]
-            self.ackid = ackTopicLevel+self.id
+            self.url = url
+            self.port = port
+            self.ack = ack
+            self.measure = measure
+            self.ackid = self.ack+self.id
             self.client = mqtt.Client(self.id) 
             self.client.on_connect = self.onConnect
             self.client.on_message = self.onMessage
             self.client.on_subscribe = self.onSubscribe
             self.client.tls_set(certfile=pemCertFilePath+certFilename, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS, ciphers=None)
-            self.client.connect(mqttServerUrl, mqttServerPort)
-            self.client.loop_start() #Listening loop start 
-            self.client.publish(self.id, dummyMsg.format(random.randint(10,50) ))
-            #self.sendMessage(dummyMsg.format(random.randint(10,50)))
 
     # connect method for the device object
     def connect(self):
-        pass
+        self.client.connect(self.url, self.port)
+        self.client.loop_start() #Listening loop start 
 
     # Send message to SAP MQTT Server
     def sendMessage(self, messageContentJson):
         time.sleep(random.randint(0,2)) #Wait some random time to make it look realistic
-        messageInfo = self.client.publish(self.id, messageContentJson)
+        messageInfo = self.client.publish(self.measure+self.id, messageContentJson)
         print(messageContentJson)
         print("Sent message for " + self.id + " with result " + str(messageInfo.rc) + " request #" + str(messageInfo.mid))
 
@@ -85,6 +82,20 @@ def main():
     # Parameters
     deviceDictionary = {} # contains all IoT devices
 
+    # Get configuration
+    config = configparser.ConfigParser(inline_comment_prefixes="#")
+    config.read(['./config/iotsim.cfg'])
+    # -------------- Parameters ------------------>>>
+    mqttServerUrl = config.get("server","mqttServerUrl")
+    mqttServerPort = config.getint("server","mqttServerPort")
+    pemCertFilePath = config.get("server","pemCertFilePath")
+    ackTopicLevel = config.get("topics","ackTopicLevel")
+    measuresTopicLevel = config.get("topics","measuresTopicLevel")
+    iotDevMessage = config.get("messages","messageTemplate")
+    pauseTime = int(config.get("timing","pauseInSeconds"))
+    runTime = int(config.get("timing","runtimeOfProgram"))
+    # -------------- Parameters ------------------<<<
+
     # Get Certificate file names
     from os import listdir
     from os.path import isfile, join
@@ -94,19 +105,32 @@ def main():
 
     # Build dictionary of and connect devices
     for certFilename in certFilenames:
-        deviceObject = IotDevice(certFilename)
+        deviceObject = IotDevice(certFilename, pemCertFilePath, mqttServerUrl, mqttServerPort, ackTopicLevel, measuresTopicLevel)
         deviceDictionary[deviceObject.getId] = deviceObject
         deviceObject.connect()
+    time.sleep(2)
+
+    loopCondition = True
+    then = datetime.now()
 
     # Start sending data to cloud
-    time.sleep(10)
-    for _ in range(2): # We send 2 random values
+    while loopCondition:
         for deviceId in list(deviceDictionary):
-            deviceDictionary[deviceId].sendMessage(dummyMsg.format(random.randint(10,50)))
+            deviceDictionary[deviceId].sendMessage(iotDevMessage.format(random.randint(10,50),random.randint(10,50),random.randint(10,50),random.randint(10,50)))
+        time.sleep(pauseTime)
+        if runTime > 0:
+            now = datetime.now()
+            durationMins = divmod((now-then).total_seconds(), 60)[0]
+            if durationMins > runTime:
+                loopCondition = False
 
     time.sleep(2) # wait until we have all feedback messages from the server
     for deviceId in list(deviceDictionary):
         deviceDictionary[deviceId].stop()
+
+    print("Shut down all clients. Entering endless loop. Restart pod if needed.")
+    while True:
+        pass
 
 if __name__ == "__main__":
     main()
