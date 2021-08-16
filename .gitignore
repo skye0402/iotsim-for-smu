@@ -1,2 +1,4 @@
 certificates
 *.code-workspace
+config
+kyma-certificates.yaml

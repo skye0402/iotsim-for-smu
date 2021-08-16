@@ -77,6 +77,10 @@ class IotDevice:
     def getId(self):
         return self.id
 
+def endless_loop(msg):
+    print(msg + " Entering endless loop. Check and redo deployment?")
+    while True:
+        pass
 
 def main():
     # Parameters
@@ -85,6 +89,14 @@ def main():
     # Get configuration
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config.read(['./config/iotsim.cfg'])
+    if not config.has_section("server"):
+        endless_loop("Config: Server section missing.")
+    if not config.has_section("topics"):
+        endless_loop("Config: Topics section missing.")
+    if not config.has_section("messages"):
+        endless_loop("Config: Messages section missing.")
+    if not config.has_section("timing"):
+        endless_loop("Config: Timing section missing.")             
     # -------------- Parameters ------------------>>>
     mqttServerUrl = config.get("server","mqttServerUrl")
     mqttServerPort = config.getint("server","mqttServerPort")
@@ -101,7 +113,10 @@ def main():
     from os.path import isfile, join
     certFilenames = [f for f in listdir(pemCertFilePath) if isfile(join(pemCertFilePath, f))]
 
-    print("Starting up...")
+    if not certFilenames:
+        endless_loop("No certificate files.")
+    else:
+        print("Starting up...")
 
     # Build dictionary of and connect devices
     for certFilename in certFilenames:
