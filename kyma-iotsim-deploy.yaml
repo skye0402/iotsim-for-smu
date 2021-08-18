@@ -56,7 +56,7 @@ data:
     measuresTopicLevel = measures/
 
     [messages]
-    messageTemplate = {{ "capabilityAlternateId": "simpleCapability", "sensorAlternateId": "simpleSensor", "measures": [{{"temperature": "{}"}}] }}
+    messageTemplate = {{ "capabilityAlternateId": "TEAM{iotDevice.teamno}_CAPABAILITY", "sensorAlternateId": "team{iotDevice.teamno}_sensor", "measures": [{{"temperature": "{random.randint(10,50)}"}}] }}
 
     [timing]
     pauseInSeconds = 20 # Time until the next message is sent

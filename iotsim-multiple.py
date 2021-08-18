@@ -42,6 +42,7 @@ class IotDevice:
         deviceName=re.match(r'^((?:[^-]*-){%d}[^-]*)-(.*)' % (n-1), certFilename)
         if deviceName: 
             self.id = deviceName.groups()[0]
+            self.teamno = re.findall('\d+', self.id)[0]
             self.url = url
             self.port = port
             self.ack = ack
@@ -81,6 +82,10 @@ def endless_loop(msg):
     print(msg + " Entering endless loop. Check and redo deployment?")
     while True:
         pass
+
+# To interpret configured templates of JSON
+def fstr(iotDevice, template):
+    return eval(f"f'{template}'")
 
 def main():
     # Parameters
@@ -131,7 +136,7 @@ def main():
     # Start sending data to cloud
     while loopCondition:
         for deviceId in list(deviceDictionary):
-            deviceDictionary[deviceId].sendMessage(iotDevMessage.format(random.randint(10,50),random.randint(10,50),random.randint(10,50),random.randint(10,50)))
+            deviceDictionary[deviceId].sendMessage(fstr(deviceDictionary[deviceId], iotDevMessage))
         time.sleep(pauseTime)
         if runTime > 0:
             now = datetime.now()
