@@ -55,6 +55,9 @@ data:
     ackTopicLevel = ack/
     measuresTopicLevel = measures/
 
+    [devices]
+    deviceName = team{iotDevice.teamno}-device
+
     [messages]
     messageTemplate = {{ "capabilityAlternateId": "TEAM{iotDevice.teamno}_CAPABAILITY", "sensorAlternateId": "team{iotDevice.teamno}_sensor", "measures": [{{"temperature": "{random.randint(10,50)}"}}] }}
 

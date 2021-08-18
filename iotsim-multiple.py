@@ -36,13 +36,15 @@ class IotDevice:
         pass
 
     # object constructor
-    def __init__(self, certFilename, pemCertFilePath, url, port, ack, measure):
+    def __init__(self, certFilename, deviceNameTemplate, pemCertFilePath, url, port, ack, measure):
         super().__init__()
         n = 3 # Cut after 3rd "-"
         deviceName=re.match(r'^((?:[^-]*-){%d}[^-]*)-(.*)' % (n-1), certFilename)
         if deviceName: 
             self.id = deviceName.groups()[0]
             self.teamno = re.findall('\d+', self.id)[0]
+            if deviceNameTemplate != "": #dynamic device name
+                self.id = fstr(self, deviceNameTemplate)
             self.url = url
             self.port = port
             self.ack = ack
@@ -98,16 +100,19 @@ def main():
         endless_loop("Config: Server section missing.")
     if not config.has_section("topics"):
         endless_loop("Config: Topics section missing.")
+    if not config.has_section("devices"):
+        endless_loop("Config: Devices section missing.")
     if not config.has_section("messages"):
         endless_loop("Config: Messages section missing.")
     if not config.has_section("timing"):
-        endless_loop("Config: Timing section missing.")             
+        endless_loop("Config: Timing section missing.")
     # -------------- Parameters ------------------>>>
     mqttServerUrl = config.get("server","mqttServerUrl")
     mqttServerPort = config.getint("server","mqttServerPort")
     pemCertFilePath = config.get("server","pemCertFilePath")
     ackTopicLevel = config.get("topics","ackTopicLevel")
     measuresTopicLevel = config.get("topics","measuresTopicLevel")
+    deviceNameTemplate = config.get("devices","deviceName")
     iotDevMessage = config.get("messages","messageTemplate")
     pauseTime = int(config.get("timing","pauseInSeconds"))
     runTime = int(config.get("timing","runtimeOfProgram"))
@@ -125,7 +130,7 @@ def main():
 
     # Build dictionary of and connect devices
     for certFilename in certFilenames:
-        deviceObject = IotDevice(certFilename, pemCertFilePath, mqttServerUrl, mqttServerPort, ackTopicLevel, measuresTopicLevel)
+        deviceObject = IotDevice(certFilename, deviceNameTemplate, pemCertFilePath, mqttServerUrl, mqttServerPort, ackTopicLevel, measuresTopicLevel)
         deviceDictionary[deviceObject.getId] = deviceObject
         deviceObject.connect()
     time.sleep(2)
